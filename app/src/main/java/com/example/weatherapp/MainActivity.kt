@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var callLay : LinearLayout
     private lateinit var zipEntry : EditText
-    private lateinit var callTV : TextView
+    private lateinit var callErrorTV : TextView
     private lateinit var callDataButton : Button
 
     private lateinit var cityLay : LinearLayout
@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
 
         callLay = findViewById(R.id.callLay)
         zipEntry = findViewById(R.id.zipEntry)
-        callTV = findViewById(R.id.callTV)
+        callErrorTV = findViewById(R.id.callTV)
         callDataButton = findViewById(R.id.callDataButton)
 
         cityLay = findViewById(R.id.cityLay)
@@ -82,25 +82,29 @@ class MainActivity : AppCompatActivity() {
         refresh = findViewById(R.id.refresh)
 
         callDataButton.setOnClickListener{
-            callTV.text = null
+            callErrorTV.text = null
+
             if (zipEntry.text.isNotBlank())
                 zipCode = zipEntry.text.toString().toInt()
             requestAPI()
 
             val handler = Handler()
             handler.postDelayed({
-                callTV.text = "Error Wrong Zip Code"
+                callErrorTV.text = "Error Wrong Zip Code"
                 zipEntry.text = null
-                                }, 1000)
+                                }, 2000)
+
             handler.postDelayed({
-                callTV.text = ""
+                callErrorTV.text = ""
             }, 5000)
+
             val view: View? = this.currentFocus
             if (view != null) {
                 val imm: InputMethodManager =
                     getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0)
             }
+
             tempMode = 0
         }
         refresh.setOnClickListener{
@@ -110,11 +114,10 @@ class MainActivity : AppCompatActivity() {
         }
         cityLay.setOnClickListener{
             change()
-            tempMode = 0
         }
         temTV.setOnClickListener{
             val df = DecimalFormat("#.##")
-            df.setRoundingMode(RoundingMode.CEILING)
+            df.roundingMode = RoundingMode.CEILING
             if (tempMode == 0) {
                 tempMode = 1
                 temp = 32+(temp*9/5)
@@ -131,14 +134,14 @@ class MainActivity : AppCompatActivity() {
                 highTemp = (highTemp-32)*5/9
                 highTemTv.text = "High: ${df.format(highTemp)}°C"
                 lowTemp = (lowTemp-32)*5/9
-                lowTemTV.text = "High: ${df.format(lowTemp)}°C"
+                lowTemTV.text = "Low: ${df.format(lowTemp)}°C"
             }
         }
     }
 
     private fun requestAPI(){
         CoroutineScope(IO).launch {
-            val data = async { fetchPrices() }.await()
+            val data = async { fetchWeather() }.await()
             if(data.isNotEmpty()){
                 setData(data)
             }else{
@@ -147,7 +150,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchPrices(): String{
+    private fun fetchWeather(): String{
         var response = ""
         try{
             response = URL("https://api.openweathermap.org/data/2.5/weather?zip=$zipCode&units=metric&appid=05d0f5b73d3d8032629902e2cbb33870").readText(Charsets.UTF_8)
@@ -178,13 +181,13 @@ class MainActivity : AppCompatActivity() {
                     "hh:mm a",
                     Locale.ENGLISH
                 ).format(Date(jsonObj.getJSONObject("sys").getLong("sunrise") * 1000))
-                riseTimeTV.text = "$riseTime AM"
+                riseTimeTV.text = "$riseTime"
                 val downTime = SimpleDateFormat(
                     "hh:mm a",
                     Locale.ENGLISH
                 ).format(Date(jsonObj.getJSONObject("sys").getLong("sunset") * 1000))
-                downTimeTV.text = "$downTime PM"
-                windSpeedTV.text = "${jsonObj.getJSONObject("wind").getString("speed")}"
+                downTimeTV.text = "$downTime"
+                windSpeedTV.text = jsonObj.getJSONObject("wind").getString("speed")
                 pressureTV.text = jsonObj.getJSONObject("main").getString("pressure")
                 humidityTV.text = jsonObj.getJSONObject("main").getString("humidity")
                 mode = 0
